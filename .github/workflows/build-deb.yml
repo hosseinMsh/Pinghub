@@ -1,0 +1,32 @@
+name: Build Debian Package
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y dpkg-dev debhelper build-essential
+
+      - name: Build .deb package
+        run: |
+          mkdir -p debian/usr/local/bin
+          cp pinghub.sh debian/usr/local/bin/pinghub
+          chmod +x debian/usr/local/bin/pinghub
+          dpkg-deb --build debian
+          
+      - name: Upload .deb package as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: pinghub-package
+          path: debian.deb
