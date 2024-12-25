@@ -1,41 +1,44 @@
-name: Build and Upload Debian Package
+name: Build and Tag .deb Package
 
 on:
   push:
     branches:
-      - main  # Trigger the workflow on pushes to the 'main' branch
+      - main  # or whichever branch you are working on
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y dpkg-dev debhelper build-essential
-      - name: Configure Git
-        run: |
-          git config --global user.name "hossein"
-          git config --global user.email "hossein.masihi@gmail.com"
+    - name: Set up Git for Actions
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Build .deb package
-        run: |
-          mkdir -p debian/usr/local/bin
-          cp ./pinghub.sh debian/usr/local/bin/pinghub  # Ensure correct path
-          chmod +x pinghub/debian/usr/local/bin/pinghub
-          dpkg-deb --build pinghub/debian
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bash iputils-ping nmap openssl dnsutils
 
-      - name: Tag release v1.0.1
-        run: |
-          git tag -a v1.0.1 -m "Release v1.0.1"
-          git push origin v1.0.1
+    - name: Build .deb package
+      run: |
+        mkdir -p debian/usr/local/bin
+        cp pinghub.sh debian/usr/local/bin/pinghub
+        chmod +x debian/usr/local/bin/pinghub
+        dpkg-deb --build debian
 
-      - name: Upload .deb package as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: pinghub-package
-          path: debian.deb
+    - name: Create and push tag
+      run: |
+        git tag -a v1.0.1 -m "Release v1.0.1"
+        git push origin v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload .deb package artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: pinghub-package
+        path: debian.deb
