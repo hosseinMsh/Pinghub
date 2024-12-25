@@ -2,7 +2,7 @@
 > A Powerful Network Scanning Tool  
 > _Monitor and scan your network effortlessly_
 
-![PingHub](https://github.com/hosseinMsh/PingHub/assets/123456789/3f53c5e1-bec9-4f7f-b0ff-c0b6c1a3b881)
+![PingHub](https://github.com/hosseinMsh/PingHub/logo.png)
 
 ---
 
