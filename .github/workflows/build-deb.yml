@@ -17,6 +17,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y dpkg-dev debhelper build-essential
+      - name: Configure Git
+        run: |
+          git config --global user.name "hossein"
+          git config --global user.email "hossein.masihi@gmail.com"
 
       - name: Build .deb package
         run: |
