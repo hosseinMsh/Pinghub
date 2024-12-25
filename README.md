@@ -52,7 +52,21 @@ chmod +x pinghub.sh
 ```
 
 ---
+### Install `.deb` Package
 
+1. Download the `.deb` package from the [Releases](https://github.com/hosseinMsh/Pinghub/releases) page on GitHub.
+
+2. Install the `.deb` package using the following command:
+
+```bash
+sudo dpkg -i pinghub_<version>.deb
+```
+3. Replace <version> with the actual version number of the package you downloaded.
+
+4. If there are any missing dependencies, run the following command to install them:
+```bash
+sudo apt-get install -f
+```
 ## 📄 Usage
 
 You can run PingHub with a variety of options and arguments to scan IP ranges, resolve hostnames, check SSL certificates, and more.
