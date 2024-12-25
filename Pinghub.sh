@@ -2,28 +2,28 @@
 
 # Function to display help
 show_help() {
-    echo "Usage: $0 -b <base_ip> -s <start_range> -e <end_range> -f <file_type> [--run-bg] [--scan-ports important/all] [--resolve-hostname] [--resolve-url <url>] [--check-ssl] [-v]"
+    echo "Usage: $0 [-s <start_ip> -e <end_ip>] [-r <exclude_pattern>] -f <file_type>"
     echo
     echo "Options:"
-    echo "  -b, --base_ip <base_ip>       Base IP address (e.g., 192.168.1)"
-    echo "  -s, --start <start_range>     Start range (1-255)"
-    echo "  -e, --end <end_range>         End range (1-255)"
-    echo "  -f, --file_type <csv/txt>     Output file type (default: txt)"
-    echo "  --run-bg                      Run in the background"
-    echo "  --scan-ports <important/all>  Scan important ports (e.g., 22, 80) or all ports"
-    echo "  --resolve-hostname            Resolve hostnames for IP addresses"
-    echo "  --resolve-url <url>           Resolve a URL or domain to its IP address"
-    echo "  --check-ssl                   Check SSL certificate expiration for responding IPs"
-    echo "  -v, --view                    View the status of all IPs"
-    echo "  -h, --help                    Show this help message"
+    echo "  -s, --start <start_ip>         Starting IP address (e.g., 127.0.0.1)"
+    echo "  -e, --end <end_ip>             Ending IP address (e.g., 127.0.10.255)"
+    echo "  -r, --exclude <exclude_pattern> IP pattern to exclude (e.g., 127.0.1.*)"
+    echo "  -f, --file_type <csv/txt>      Output file type (default: txt)"
+    echo "  --run-bg                       Run in the background"
+    echo "  --scan-ports <important/all>   Scan important ports (e.g., 22, 80) or all ports"
+    echo "  --resolve-hostname             Resolve hostnames for IP addresses"
+    echo "  --resolve-url <url>            Resolve a URL or domain to its IP address"
+    echo "  --check-ssl                    Check SSL certificate expiration for responding IPs"
+    echo "  -v, --view                     View the status of all IPs"
+    echo "  -h, --help                     Show this help message"
     exit 0
 }
 
 # Default values
+start_ip=""
+end_ip=""
+exclude_pattern=""
 file_type="txt"
-start_range=1
-end_range=255
-base_ip=""
 view=false
 run_in_bg=false
 scan_ports=""
@@ -34,9 +34,9 @@ check_ssl=false
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        -b|--base_ip) base_ip="$2"; shift ;;
-        -s|--start) start_range="$2"; shift ;;
-        -e|--end) end_range="$2"; shift ;;
+        -s|--start) start_ip="$2"; shift ;;
+        -e|--end) end_ip="$2"; shift ;;
+        -r|--exclude) exclude_pattern="$2"; shift ;;
         -f|--file_type) file_type="$2"; shift ;;
         --run-bg) run_in_bg=true ;;
         --scan-ports) scan_ports="$2"; shift ;;
@@ -51,154 +51,82 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Validate input
-if [[ ! "$base_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Invalid base IP address. It should be in the format X.X.X (e.g., 192.168.1)"
+if [[ -z "$start_ip" || -z "$end_ip" ]]; then
+    echo "Error: You must provide both a start and end IP address."
     exit 1
 fi
 
-if [[ ! "$start_range" =~ ^[0-9]+$ || ! "$end_range" =~ ^[0-9]+$ || "$start_range" -gt "$end_range" ]]; then
-    echo "Invalid range. Start and end ranges must be integers, and start must be less than or equal to end."
-    exit 1
-fi
+# Function to generate all IPs in a range
+generate_ips_in_range() {
+    local start_ip="$1"
+    local end_ip="$2"
+    
+    # Convert start and end IP to integers for comparison
+    local start_num=$(ip_to_int "$start_ip")
+    local end_num=$(ip_to_int "$end_ip")
+    
+    local ip_list=()
+    for ((i=start_num; i<=end_num; i++)); do
+        ip_list+=("$(int_to_ip $i)")
+    done
+    
+    echo "${ip_list[@]}"
+}
 
-if [[ "$file_type" != "txt" && "$file_type" != "csv" ]]; then
-    echo "Invalid file type. Use 'txt' or 'csv'."
-    exit 1
-fi
-
-# Ensure required commands are available
-if ! command -v ping > /dev/null; then
-    echo "Error: ping command is not available. Please install it."
-    exit 1
-fi
-
-if [[ "$scan_ports" && ! $(command -v nmap) ]]; then
-    echo "Installing nmap..."
-    sudo apt-get install -y nmap || { echo "Failed to install nmap."; exit 1; }
-fi
-
-# Generate output directories and file name
-output_dir="/ping_hub/ping_${base_ip}_${start_range}-${end_range}"
-mkdir -p "$output_dir/ports"
-output_file="$output_dir/ping_results.${file_type}"
-
-# Warn if output file exists
-if [[ -f "$output_file" ]]; then
-    read -p "File $output_file exists. Overwrite? (y/n): " overwrite
-    if [[ "$overwrite" != "y" ]]; then
-        echo "Operation cancelled."
-        exit 1
-    fi
-fi
-
-# Function to resolve hostname
-resolve_hostname_for_ip() {
+# Convert IP to integer
+ip_to_int() {
     local ip="$1"
-    local hostname_file="$output_dir/hostnames.${file_type}"
-    echo "Resolving hostname for $ip..."
-    hostname=$(nslookup "$ip" 2>/dev/null | awk -F': ' '/name =/ {print $2}')
-    if [[ "$hostname" ]]; then
-        if [[ "$file_type" == "csv" ]]; then
-            echo "$ip,$hostname" >> "$hostname_file"
-        else
-            echo "$ip resolved to $hostname" >> "$hostname_file"
-        fi
-    else
-        if [[ "$file_type" == "csv" ]]; then
-            echo "$ip,unresolved" >> "$hostname_file"
-        else
-            echo "$ip could not be resolved" >> "$hostname_file"
-        fi
-    fi
+    local a b c d
+    IFS=. read -r a b c d <<< "$ip"
+    echo "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
 }
 
-# Function to resolve URL to IP
-resolve_url_to_ip() {
-    local url="$1"
-    local resolved_file="$output_dir/resolved_urls.${file_type}"
-    echo "Resolving URL $url to IP..."
-    ip=$(nslookup "$url" 2>/dev/null | awk -F': ' '/Address: / {print $2}' | tail -n1)
-    if [[ "$ip" ]]; then
-        if [[ "$file_type" == "csv" ]]; then
-            echo "$url,$ip" >> "$resolved_file"
-        else
-            echo "$url resolved to $ip" >> "$resolved_file"
-        fi
-    else
-        if [[ "$file_type" == "csv" ]]; then
-            echo "$url,unresolved" >> "$resolved_file"
-        else
-            echo "$url could not be resolved" >> "$resolved_file"
-        fi
-    fi
+# Convert integer to IP
+int_to_ip() {
+    local int="$1"
+    echo "$((int >> 24 & 255)).$((int >> 16 & 255)).$((int >> 8 & 255)).$((int & 255))"
 }
 
-# Function to scan ports
-scan_ports_for_ip() {
+# Function to check if an IP matches the exclusion pattern
+matches_exclusion() {
     local ip="$1"
-    local port_file="$output_dir/ports/${ip}.${file_type}"
-
-    if [[ "$scan_ports" == "important" ]]; then
-        ports="22,80,443,1080,8000,3000"
+    local pattern="$2"
+    
+    # Remove any trailing '*' from the pattern and replace with regex
+    pattern="${pattern//\*/.*}"
+    
+    if [[ "$ip" =~ $pattern ]]; then
+        return 0  # Match
     else
-        ports="1-65535"
-    fi
-
-    echo "Scanning ports on $ip..."
-    if [[ "$file_type" == "csv" ]]; then
-        nmap -p "$ports" "$ip" -oG - | awk '/Up$/{print $2","$5}' > "$port_file"
-    else
-        nmap -p "$ports" "$ip" > "$port_file"
-    fi
-    echo "Port scan results saved to $port_file"
-}
-
-# Function to check SSL certificate expiration
-check_ssl_expiration() {
-    local ip="$1"
-    local ssl_file="$output_dir/ssl_certificates.${file_type}"
-
-    echo "Checking SSL certificate for $ip..."
-    expiration=$(echo | openssl s_client -connect "$ip":443 -servername "$ip" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d'=' -f2)
-    if [[ "$expiration" ]]; then
-        if [[ "$file_type" == "csv" ]]; then
-            echo "$ip,$expiration" >> "$ssl_file"
-        else
-            echo "$ip SSL certificate expires on $expiration" >> "$ssl_file"
-        fi
-    else
-        if [[ "$file_type" == "csv" ]]; then
-            echo "$ip,No SSL certificate detected" >> "$ssl_file"
-        else
-            echo "$ip has no SSL certificate detected" >> "$ssl_file"
-        fi
+        return 1  # No match
     fi
 }
 
-# Function to ping IPs and save results
-ping_ips() {
-    > "$output_file"  # Clear the output file
-    echo "Scanning IP range ${base_ip}.${start_range}-${base_ip}.${end_range}..."
-    max_jobs=10  # Maximum parallel pings
-    job_count=0
-    for i in $(seq "$start_range" "$end_range"); do
-        (
-            ip="${base_ip}.${i}"
-            if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
-                echo "$ip,responded" >> "$output_file"
-                if [[ "$scan_ports" ]]; then
-                    scan_ports_for_ip "$ip"
-                fi
-                if [[ "$resolve_hostname" == true ]]; then
-                    resolve_hostname_for_ip "$ip"
-                fi
-                if [[ "$check_ssl" == true ]]; then
-                    check_ssl_expiration "$ip"
-                fi
-            else
-                echo "$ip,unreachable" >> "$output_file"
-            fi
-        ) &
-        ((job_count++))
-        if [[ "$job_count" -ge "$max_jobs" ]]; then
-            wait -n  # Wait for any
+# Function to ping IPs and perform actions
+ping_ips_in_range() {
+    local start_ip="$1"
+    local end_ip="$2"
+    local exclude_pattern="$3"
+    
+    # Generate IPs in range
+    ips=($(generate_ips_in_range "$start_ip" "$end_ip"))
+    
+    for ip in "${ips[@]}"; do
+        # Check if the IP matches the exclusion pattern
+        if matches_exclusion "$ip" "$exclude_pattern"; then
+            echo "Skipping $ip (matches exclusion pattern)"
+            continue
+        fi
+        
+        # Ping the IP
+        if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
+            echo "$ip,responded"
+            # You can add other actions here like port scanning, resolving hostname, etc.
+        else
+            echo "$ip,unreachable"
+        fi
+    done
+}
+
+# Call the function to ping IPs in range
+ping_ips_in_range "$start_ip" "$end_ip" "$exclude_pattern"
