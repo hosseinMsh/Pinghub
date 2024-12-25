@@ -24,12 +24,8 @@ start_ip=""
 end_ip=""
 exclude_pattern=""
 file_type="txt"
-view=false
-run_in_bg=false
-scan_ports=""
-resolve_hostname=false
-resolve_url=""
-check_ssl=false
+max_parallel_jobs=100  # Max number of parallel jobs
+output_file="output.txt"
 
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -38,12 +34,6 @@ while [[ "$#" -gt 0 ]]; do
         -e|--end) end_ip="$2"; shift ;;
         -r|--exclude) exclude_pattern="$2"; shift ;;
         -f|--file_type) file_type="$2"; shift ;;
-        --run-bg) run_in_bg=true ;;
-        --scan-ports) scan_ports="$2"; shift ;;
-        --resolve-hostname) resolve_hostname=true ;;
-        --resolve-url) resolve_url="$2"; shift ;;
-        --check-ssl) check_ssl=true ;;
-        -v|--view) view=true ;;
         -h|--help) show_help ;;
         *) echo "Unknown parameter passed: $1"; show_help ;;
     esac
@@ -60,17 +50,13 @@ fi
 generate_ips_in_range() {
     local start_ip="$1"
     local end_ip="$2"
-    
-    # Convert start and end IP to integers for comparison
+
     local start_num=$(ip_to_int "$start_ip")
     local end_num=$(ip_to_int "$end_ip")
-    
-    local ip_list=()
+
     for ((i=start_num; i<=end_num; i++)); do
-        ip_list+=("$(int_to_ip $i)")
+        int_to_ip "$i"
     done
-    
-    echo "${ip_list[@]}"
 }
 
 # Convert IP to integer
@@ -91,10 +77,8 @@ int_to_ip() {
 matches_exclusion() {
     local ip="$1"
     local pattern="$2"
-    
-    # Remove any trailing '*' from the pattern and replace with regex
-    pattern="${pattern//\*/.*}"
-    
+
+    pattern="${pattern//\*/.*}"  # Replace '*' with '.*' for regex
     if [[ "$ip" =~ $pattern ]]; then
         return 0  # Match
     else
@@ -102,31 +86,50 @@ matches_exclusion() {
     fi
 }
 
-# Function to ping IPs and perform actions
-ping_ips_in_range() {
+# Function to ping an IP
+ping_ip() {
+    local ip="$1"
+    if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
+        echo "$ip,responded" >> "$output_file"
+    else
+        echo "$ip,unreachable" >> "$output_file"
+    fi
+}
+
+# Function to scan IPs with parallelism
+scan_ips_in_parallel() {
     local start_ip="$1"
     local end_ip="$2"
     local exclude_pattern="$3"
-    
-    # Generate IPs in range
-    ips=($(generate_ips_in_range "$start_ip" "$end_ip"))
-    
-    for ip in "${ips[@]}"; do
-        # Check if the IP matches the exclusion pattern
+
+    local ip_list=()
+    while read -r ip; do
+        # Exclude IPs that match the exclusion pattern
         if matches_exclusion "$ip" "$exclude_pattern"; then
             echo "Skipping $ip (matches exclusion pattern)"
             continue
         fi
-        
-        # Ping the IP
-        if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
-            echo "$ip,responded"
-            # You can add other actions here like port scanning, resolving hostname, etc.
-        else
-            echo "$ip,unreachable"
+        ip_list+=("$ip")
+    done < <(generate_ips_in_range "$start_ip" "$end_ip")
+
+    # Process IPs in parallel
+    echo "Scanning IPs in parallel..."
+    for ip in "${ip_list[@]}"; do
+        ((job_count++))
+        (
+            ping_ip "$ip"
+        ) &
+
+        # Limit parallel jobs
+        if ((job_count >= max_parallel_jobs)); then
+            wait -n  # Wait for any job to finish
+            ((job_count--))
         fi
     done
+
+    wait  # Wait for all jobs to finish
+    echo "IP scanning complete. Results saved to $output_file"
 }
 
-# Call the function to ping IPs in range
-ping_ips_in_range "$start_ip" "$end_ip" "$exclude_pattern"
+# Call the function to scan IPs
+scan_ips_in_parallel "$start_ip" "$end_ip" "$exclude_pattern"
