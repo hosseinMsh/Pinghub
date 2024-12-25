@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Function to display help
 show_help() {
     echo "Usage: $0 -b <base_ip> -s <start_range> -e <end_range> -f <output_file> [-v]"
