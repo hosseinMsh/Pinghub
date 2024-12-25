@@ -26,6 +26,7 @@ exclude_pattern=""
 file_type="txt"
 max_parallel_jobs=100  # Max number of parallel jobs
 output_file="output.txt"
+tmp_output_file="tmp_output.txt"
 
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -46,19 +47,6 @@ if [[ -z "$start_ip" || -z "$end_ip" ]]; then
     exit 1
 fi
 
-# Function to generate all IPs in a range
-generate_ips_in_range() {
-    local start_ip="$1"
-    local end_ip="$2"
-
-    local start_num=$(ip_to_int "$start_ip")
-    local end_num=$(ip_to_int "$end_ip")
-
-    for ((i=start_num; i<=end_num; i++)); do
-        int_to_ip "$i"
-    done
-}
-
 # Convert IP to integer
 ip_to_int() {
     local ip="$1"
@@ -77,7 +65,6 @@ int_to_ip() {
 matches_exclusion() {
     local ip="$1"
     local pattern="$2"
-
     pattern="${pattern//\*/.*}"  # Replace '*' with '.*' for regex
     if [[ "$ip" =~ $pattern ]]; then
         return 0  # Match
@@ -90,9 +77,9 @@ matches_exclusion() {
 ping_ip() {
     local ip="$1"
     if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
-        echo "$ip,responded" >> "$output_file"
+        echo "$ip,responded" >> "$tmp_output_file"
     else
-        echo "$ip,unreachable" >> "$output_file"
+        echo "$ip,unreachable" >> "$tmp_output_file"
     fi
 }
 
@@ -101,7 +88,7 @@ scan_ips_in_parallel() {
     local start_ip="$1"
     local end_ip="$2"
     local exclude_pattern="$3"
-
+    
     local ip_list=()
     while read -r ip; do
         # Exclude IPs that match the exclusion pattern
@@ -110,7 +97,7 @@ scan_ips_in_parallel() {
             continue
         fi
         ip_list+=("$ip")
-    done < <(generate_ips_in_range "$start_ip" "$end_ip")
+    done < <(seq $(ip_to_int "$start_ip") $(ip_to_int "$end_ip") | while read i; do int_to_ip $i; done)
 
     # Process IPs in parallel
     echo "Scanning IPs in parallel..."
@@ -128,8 +115,17 @@ scan_ips_in_parallel() {
     done
 
     wait  # Wait for all jobs to finish
-    echo "IP scanning complete. Results saved to $output_file"
+}
+
+# Batch write the results to the output file
+batch_write_output() {
+    cat "$tmp_output_file" >> "$output_file"
+    rm "$tmp_output_file"
 }
 
 # Call the function to scan IPs
 scan_ips_in_parallel "$start_ip" "$end_ip" "$exclude_pattern"
+
+# Batch write the results
+batch_write_output
+echo "IP scanning complete. Results saved to $output_file"
