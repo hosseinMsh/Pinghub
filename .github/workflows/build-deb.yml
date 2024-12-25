@@ -1,9 +1,9 @@
-name: Build Debian Package
+name: Build and Upload Debian Package
 
 on:
   push:
     branches:
-      - main
+      - main  # Trigger the workflow on pushes to the 'main' branch
 
 jobs:
   build:
@@ -24,9 +24,14 @@ jobs:
           cp pinghub.sh debian/usr/local/bin/pinghub
           chmod +x debian/usr/local/bin/pinghub
           dpkg-deb --build debian
-          
+
+      - name: Tag release v1.0.1
+        run: |
+          git tag -a v1.0.1 -m "Release v1.0.1"
+          git push origin v1.0.1
+
       - name: Upload .deb package as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: pinghub-package
           path: debian.deb
