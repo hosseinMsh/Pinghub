@@ -22,8 +22,8 @@ jobs:
         run: |
           mkdir -p debian/usr/local/bin
           cp ./pinghub.sh debian/usr/local/bin/pinghub  # Ensure correct path
-          chmod +x debian/usr/local/bin/pinghub
-          dpkg-deb --build debian
+          chmod +x pinghub/debian/usr/local/bin/pinghub
+          dpkg-deb --build pinghub/debian
 
       - name: Tag release v1.0.1
         run: |
