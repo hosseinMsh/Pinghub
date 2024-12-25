@@ -24,8 +24,8 @@ jobs:
 
       - name: Build .deb package
         run: |
-          mkdir -p debian/usr/local/bin
-          cp ./pinghub.sh debian/usr/local/bin/pinghub  # Ensure correct path
+          mkdir -p pibghub/debian/usr/local/bin
+          cp ./pinghub.sh pinghub/debian/usr/local/bin/pinghub  # Ensure correct path
           chmod +x pinghub/debian/usr/local/bin/pinghub
           dpkg-deb --build pinghub/debian
 
