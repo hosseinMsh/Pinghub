@@ -36,20 +36,26 @@ jobs:
       - name: Tag release
         id: tag_release
         run: |
-          # Get the latest tag
-          latest_tag=$(git describe --tags --abbrev=0)
-          echo "Latest tag: $latest_tag"
+          # Check if there are any tags
+          if git tag | grep -q .; then
+            # Get the latest tag
+            latest_tag=$(git describe --tags --abbrev=0)
+            echo "Latest tag: $latest_tag"
 
-          # Extract the version number and increment it
-          if [[ $latest_tag =~ v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
-            major=${BASH_REMATCH[1]}
-            minor=${BASH_REMATCH[2]}
-            patch=${BASH_REMATCH[3]}
-            new_minor=$((minor + 1))
-            new_tag="v${major}.${new_minor}.0"
-            echo "New tag: $new_tag"
+            # Extract the version number and increment it
+            if [[ $latest_tag =~ v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+              major=${BASH_REMATCH[1]}
+              minor=${BASH_REMATCH[2]}
+              patch=${BASH_REMATCH[3]}
+              new_minor=$((minor + 1))
+              new_tag="v${major}.${new_minor}.0"
+              echo "New tag: $new_tag"
+            else
+              echo "No valid version tag found. Defaulting to v1.0.0."
+              new_tag="v1.0.0"
+            fi
           else
-            echo "No valid version tag found. Defaulting to v1.0.0."
+            echo "No tags found. Defaulting to v1.0.0."
             new_tag="v1.0.0"
           fi
 
