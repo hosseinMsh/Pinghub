@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - main  # Trigger the workflow on pushes to the 'main' branch
+
 permissions:
-  contents: write
-  packages: write
-  pull-requests: write
+  contents: write  # Allow the workflow to write to the repository
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,20 +28,22 @@ jobs:
 
       - name: Build .deb package
         run: |
-          mkdir -p pinghub/debian/usr/local/bin  # Corrected the directory name from 'pibghub' to 'pinghub'
-          cp ./pinghub.sh pinghub/debian/usr/local/bin/pinghub  # Ensure correct path
+          mkdir -p pinghub/debian/usr/local/bin
+          cp ./pinghub.sh pinghub/debian/usr/local/bin/pinghub
           chmod +x pinghub/debian/usr/local/bin/pinghub
-          dpkg-deb --build pinghub/debian  # Ensure the correct path to the directory being built
+          dpkg-deb --build pinghub/debian
 
       - name: Tag release v1.0.1
         run: |
-          git tag -a v1.0.1 -m "Release v1.0.1"
-          git push origin v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if git rev-parse v1.0.1 >/dev/null 2>&1; then
+            echo "Tag v1.0.1 already exists. Skipping tag creation."
+          else
+            git tag -a v1.0.1 -m "Release v1.0.1"
+            git push origin v1.0.1
+          fi
 
       - name: Upload .deb package as artifact
         uses: actions/upload-artifact@v3
         with:
           name: pinghub-package
-          path: pinghub/debian.deb  # Ensure the correct path to the built .deb package
+          path: pinghub/debian.deb
