@@ -4,7 +4,10 @@ on:
   push:
     branches:
       - main  # Trigger the workflow on pushes to the 'main' branch
-
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
 jobs:
   build:
     runs-on: ubuntu-latest
