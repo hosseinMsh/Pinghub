@@ -1,0 +1,7 @@
+Package: pinghub
+Version: 1.0.1
+Architecture: amd64
+Installed-Size: 1024
+Depends: bash, iputils-ping, nmap, openssl, dnsutils
+Maintainer: Hossein Masihi <hossein.masihi@gmail.com>
+Description: A simple IP scanning tool for pinging IPs, resolving hostnames, and scanning ports.
