@@ -17,6 +17,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y dpkg-dev debhelper build-essential
+
       - name: Configure Git
         run: |
           git config --global user.name "hossein"
@@ -24,10 +25,10 @@ jobs:
 
       - name: Build .deb package
         run: |
-          mkdir -p pibghub/debian/usr/local/bin
+          mkdir -p pinghub/debian/usr/local/bin  # Corrected the directory name from 'pibghub' to 'pinghub'
           cp ./pinghub.sh pinghub/debian/usr/local/bin/pinghub  # Ensure correct path
           chmod +x pinghub/debian/usr/local/bin/pinghub
-          dpkg-deb --build pinghub/debian
+          dpkg-deb --build pinghub/debian  # Ensure the correct path to the directory being built
 
       - name: Tag release v1.0.1
         run: |
@@ -35,9 +36,9 @@ jobs:
           git push origin v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
+
       - name: Upload .deb package as artifact
         uses: actions/upload-artifact@v3
         with:
           name: pinghub-package
-          path: debian.deb
+          path: pinghub/debian.deb  # Ensure the correct path to the built .deb package
