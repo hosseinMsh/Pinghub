@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history including tags
 
       - name: Install dependencies
         run: |
@@ -68,8 +70,19 @@ jobs:
           done
 
           # Create and push the new tag
-          git tag -a "$new_tag" -m "Release $new_tag"
-          git push origin "$new_tag"
+          if git tag -a "$new_tag" -m "Release $new_tag"; then
+            echo "Successfully created tag: $new_tag"
+          else
+            echo "Failed to create tag: $new_tag"
+            exit 1
+          fi
+
+          if git push origin "$new_tag"; then
+            echo "Successfully pushed tag: $new_tag"
+          else
+            echo "Failed to push tag: $new_tag"
+            exit 1
+          fi
 
       - name: Upload .deb package as artifact
         uses: actions/upload-artifact@v3
