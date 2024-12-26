@@ -22,7 +22,7 @@ show_help() {
 # Default values
 start_ip=""
 end_ip=""
-exclude_pattern=""
+exclude_pattern="127.0.0.256"
 file_type="txt"
 max_parallel_jobs=100  # Max number of parallel jobs
 output_file="output.txt"
