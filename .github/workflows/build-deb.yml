@@ -60,12 +60,12 @@ jobs:
           fi
 
           # Check if the new tag already exists
-          if git rev-parse "$new_tag" >/dev/null 2>&1; then
+          while git rev-parse "$new_tag" >/dev/null 2>&1; do
             echo "Tag $new_tag already exists. Incrementing minor version."
             new_minor=$((minor + 1))
             new_tag="v${major}.${new_minor}.0"
             echo "New tag: $new_tag"
-          fi
+          done
 
           # Create and push the new tag
           git tag -a "$new_tag" -m "Release $new_tag"
