@@ -2,13 +2,13 @@
 
 # Function to display help
 show_help() {
-    echo "Usage: $0 [-s <start_ip> -e <end_ip>] [-r <exclude_pattern>] -f <file_type>"
+    echo "Usage: $0 [-s <start_ip> -e <end_ip>] [-r <exclude_pattern>] -f <file_name>"
     echo
     echo "Options:"
     echo "  -s, --start <start_ip>         Starting IP address (e.g., 127.0.0.1)"
     echo "  -e, --end <end_ip>             Ending IP address (e.g., 127.0.10.255)"
     echo "  -r, --exclude <exclude_pattern> IP pattern to exclude (e.g., 127.0.1.*)"
-    echo "  -f, --file_type <csv/txt>      Output file type (default: txt)"
+    echo "  -f, --file_name <name>          Output file name (without extension, will be .csv)"
     echo "  -h, --help                     Show this help message"
     exit 0
 }
@@ -16,10 +16,8 @@ show_help() {
 # Default values
 start_ip=""
 end_ip=""
-exclude_pattern="127.0.0.256"
-file_type="txt"
-output_file="output.txt"
-tmp_output_file="tmp_output.txt"
+exclude_pattern=""
+file_name=""
 
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -27,7 +25,7 @@ while [[ "$#" -gt 0 ]]; do
         -s|--start) start_ip="$2"; shift ;;
         -e|--end) end_ip="$2"; shift ;;
         -r|--exclude) exclude_pattern="$2"; shift ;;
-        -f|--file_type) file_type="$2"; shift ;;
+        -f|--file_name) file_name="$2"; shift ;;
         -h|--help) show_help ;;
         *) echo "Unknown parameter passed: $1"; show_help ;;
     esac
@@ -35,10 +33,18 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Validate input
-if [[ -z "$start_ip" || -z "$end_ip" ]]; then
-    echo "Error: You must provide both a start and end IP address."
+if [[ -z "$start_ip" || -z "$end_ip" || -z "$file_name" ]]; then
+    echo "Error: You must provide a start IP, end IP, and file name for pinging."
     exit 1
 fi
+
+# Prepare output files
+output_file="${file_name}.csv"
+non_responsive_file="${file_name}-non_responsive.csv"
+
+# Write headers to the output file
+echo "ips,urls,domain,SSL certificate expiration,ports" > "$output_file"
+echo "ips" > "$non_responsive_file"
 
 # Convert IP to integer
 ip_to_int() {
@@ -70,9 +76,9 @@ matches_exclusion() {
 ping_ip() {
     local ip="$1"
     if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
-        echo "$ip,responded" >> "$tmp_output_file"
+        echo "$ip,,," >> "$output_file"  # Write responsive IP to output file
     else
-        echo "$ip,unreachable" >> "$tmp_output_file"
+        echo "$ip" >> "$non_responsive_file"  # Write non-responsive IP to separate file
     fi
 }
 
@@ -102,8 +108,4 @@ scan_ips_in_parallel() {
 scan_ips_in_parallel "$start_ip" "$end_ip" "$exclude_pattern"
 
 # Output results
-if [[ -f "$tmp_output_file" ]]; then
-    echo "IP scanning complete. Results saved to $tmp_output_file"
-else
-    echo "No results to save."
-fi
+echo "IP scanning complete. Results saved to $output
