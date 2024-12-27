@@ -1,13 +1,14 @@
 #!/bin/bash
 
-function show_usage() {
-    echo "Usage: $0 [-s <start_ip> -e <end_ip>] [-r <exclude_pattern>] -f <file_type>"
+# Function to display help
+show_help() {
+    echo "Usage: $0 [-s <start_ip> -e <end_ip>] [-r <exclude_pattern>] -f <file_name>"
     echo
     echo "Options:"
     echo "  -s, --start <start_ip>         Starting IP address (e.g., 127.0.0.1)"
     echo "  -e, --end <end_ip>             Ending IP address (e.g., 127.0.10.255)"
     echo "  -r, --exclude <exclude_pattern> IP pattern to exclude (e.g., 127.0.1.*)"
-    echo "  -f, --file_type <csv/txt>      Output file type (default: txt)"
+    echo "  -f, --file_name <name>          Output file name (without extension, will be .csv)"
     echo "  --run-bg                        Run in the background"
     echo "  --scan-ports <important/all>    Scan important ports (e.g., 22, 80) or all ports"
     echo "  --resolve-hostname              Resolve hostnames for IP addresses"
@@ -15,63 +16,51 @@ function show_usage() {
     echo "  --check-ssl                     Check SSL certificate expiration for responding IPs"
     echo "  -v, --view                      View the status of all IPs"
     echo "  -h, --help                      Show this help message"
+    echo "  --ping                          Ping a range of IPs"
     echo "  --example                       Show example usage"
     exit 0
 }
 
-function show_examples() {
-    echo "Examples of Usage:"
-    echo
-    echo "1. Ping a Range of IPs:"
-    echo "   ./networkTools.sh -s 192.168.1.1 -e 192.168.1.10 -f txt"
-    echo
-    echo "2. Exclude a Pattern:"
-    echo "   ./networkTools.sh -s 192.168.1.1 -e 192.168.1.10 -r 192.168.1.* -f txt"
-    echo
-    echo "3. Scan Important Ports:"
-    echo "   ./networkTools.sh -s 192.168.1.1 -e 192.168.1.10 --scan-ports important"
-    echo
-    echo "4. Resolve Hostnames:"
-    echo "   ./networkTools.sh -s 192.168.1.1 -e 192.168.1.10 --resolve-hostname"
-    echo
-    echo "5. Resolve a URL to IP:"
-    echo "   ./networkTools.sh --resolve-url example.com"
-    echo
-    echo "6. Check SSL Certificates:"
-    echo "   ./networkTools.sh -s 192.168.1.1 -e 192.168.1.10 --check-ssl"
-    echo
-    echo "7. View Status of All IPs:"
-    echo "   ./networkTools.sh -v"
-    echo
-    echo "8. Run in Background:"
-    echo "   ./networkTools.sh -s 192.168.1.1 -e 192.168.1.10 --run-bg"
-    exit 0
-}
+# Default values
+start_ip=""
+end_ip=""
+exclude_pattern=""
+file_name=""
 
-# Check for no arguments
-if [ $# -eq 0 ]; then
-    show_usage
-fi
-
-# Parse command line arguments
+# Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -s|--start) start_ip="$2"; shift ;;
         -e|--end) end_ip="$2"; shift ;;
         -r|--exclude) exclude_pattern="$2"; shift ;;
-        -f|--file_type) file_type="$2"; shift ;;
+        -f|--file_name) file_name="$2"; shift ;;
         --run-bg) run_bg=true ;;
         --scan-ports) scan_ports="$2"; shift ;;
         --resolve-hostname) resolve_hostname=true ;;
         --resolve-url) resolve_url="$2"; shift ;;
         --check-ssl) check_ssl=true ;;
         -v|--view) view_status=true ;;
-        -h|--help) show_usage ;;
+        -h|--help) show_help ;;
         --example) show_examples ;;
-        *) echo "Unknown option: $1"; show_usage & show_examples ;;
+        --ping) ping=true ;;
+        *) echo "Unknown option: $1"; show_help ;;
     esac
     shift
 done
+
+# Validate input
+if [ "$ping" = true ]; then
+    if [[ -z "$start_ip" || -z "$end_ip" || -z "$file_name" ]]; then
+        echo "Error: You must provide a start IP, end IP, and file name for pinging."
+        exit 1
+    fi
+    echo "Pinging IP range from $start_ip to $end_ip..."
+    ./pinghub.sh -s "$start_ip" -e "$end_ip" -r "$exclude_pattern" -f "$file_name"
+    exit 0
+fi
+
+# Add other functionalities as needed
+echo "Network tools operations completed."
 
 # Call sub-scripts based on options
 if [ "$view_status" = true ]; then
