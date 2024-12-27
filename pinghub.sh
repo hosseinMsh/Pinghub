@@ -18,7 +18,6 @@ start_ip=""
 end_ip=""
 exclude_pattern="127.0.0.256"
 file_type="txt"
-max_parallel_jobs=100  # Max number of parallel jobs
 output_file="output.txt"
 tmp_output_file="tmp_output.txt"
 
@@ -77,49 +76,36 @@ ping_ip() {
     fi
 }
 
-# Function to scan IPs with parallelism
-scan_ips_in_parallel() {
+# Function to scan IPs
+scan_ips() {
     local start_ip="$1"
     local end_ip="$2"
     local exclude_pattern="$3"
-    
+
     local ip_list=()
-    while read -r ip; do
+    for ((i=$(ip_to_int "$start_ip"); i<=$(ip_to_int "$end_ip"); i++)); do
+        local ip=$(int_to_ip "$i")
         # Exclude IPs that match the exclusion pattern
         if matches_exclusion "$ip" "$exclude_pattern"; then
             echo "Skipping $ip (matches exclusion pattern)"
             continue
         fi
         ip_list+=("$ip")
-    done < <(seq $(ip_to_int "$start_ip") $(ip_to_int "$end_ip") | while read i; do int_to_ip $i; done)
-
-    # Process IPs in parallel
-    echo "Scanning IPs in parallel..."
-    for ip in "${ip_list[@]}"; do
-        ((job_count++))
-        (
-            ping_ip "$ip"
-        ) &
-
-        # Limit parallel jobs
-        if ((job_count >= max_parallel_jobs)); then
-            wait -n  # Wait for any job to finish
-            ((job_count--))
-        fi
     done
 
-    wait  # Wait for all jobs to finish
-}
-
-# Batch write the results to the output file
-batch_write_output() {
-    cat "$tmp_output_file" >> "$output_file"
-    rm "$tmp_output_file"
+    # Ping each IP
+    echo "Pinging IPs..."
+    for ip in "${ip_list[@]}"; do
+        ping_ip "$ip"
+    done
 }
 
 # Call the function to scan IPs
-scan_ips_in_parallel "$start_ip" "$end_ip" "$exclude_pattern"
+scan_ips "$start_ip" "$end_ip" "$exclude_pattern"
 
-# Batch write the results
-batch_write_output
-echo "IP scanning complete. Results saved to $output_file"
+# Output results
+if [[ -f "$tmp_output_file" ]]; then
+    echo "IP scanning complete. Results saved to $tmp_output_file"
+else
+    echo "No results to save."
+fi
