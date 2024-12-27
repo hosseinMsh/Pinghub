@@ -21,6 +21,32 @@ show_help() {
     exit 0
 }
 
+# Function to show examples
+show_examples() {
+    echo "Examples of Usage:"
+    echo
+    echo "1. Ping a Range of IPs:"
+    echo "   ./networkTools.sh --ping -s 192.168.1.1 -e 192.168.1.10 -f my_output"
+    echo "   This will ping all IPs from 192.168.1.1 to 192.168.1.10 and save the results to my_output.csv."
+    echo
+    echo "2. Exclude a Pattern:"
+    echo "   ./networkTools.sh --ping -s 192.168.1.1 -e 192.168.1.10 -r 192.168.1.5 -f my_output"
+    echo "   This will ping the range but skip 192.168.1.5."
+    echo
+    echo "3. View Help:"
+    echo "   ./networkTools.sh -h"
+    echo "   This will display the help message."
+    echo
+    echo "4. View Status of All IPs:"
+    echo "   ./networkTools.sh -v"
+    echo "   This will show the status of all IPs."
+    echo
+    echo "5. Run in Background:"
+    echo "   ./networkTools.sh --ping -s 192.168.1.1 -e 192.168.1.10 --run-bg"
+    echo "   This will run the ping operation in the background."
+    exit 0
+}
+
 # Default values
 start_ip=""
 end_ip=""
@@ -54,7 +80,7 @@ if [ "$ping" = true ]; then
         echo "Error: You must provide a start IP, end IP, and file name for pinging."
         exit 1
     fi
-    echo "Pinging IP range from $start_ip to $end_ip..."
+    echo "Pinging IP range from $start_ip to $
     ./pinghub.sh -s "$start_ip" -e "$end_ip" -r "$exclude_pattern" -f "$file_name"
     exit 0
 fi
