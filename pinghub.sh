@@ -5,9 +5,9 @@ show_help() {
     echo "Usage: $0 [-s <start_ip> -e <end_ip>] [-r <exclude_pattern>] -f <file_name>"
     echo
     echo "Options:"
-    echo "  -s, --start <start_ip>         Starting IP address (e.g., 127.0.0.1)"
-    echo "  -e, --end <end_ip>             Ending IP address (e.g., 127.0.10.255)"
-    echo "  -r, --exclude <exclude_pattern> IP pattern to exclude (e.g., 127.0.1.*)"
+    echo "  -s, --start <start_ip>         Starting IP address (e.g., 192.168.1.1)"
+    echo "  -e, --end <end_ip>             Ending IP address (e.g., 192.168.1.255)"
+    echo "  -r, --exclude <exclude_pattern> IP pattern to exclude (e.g., 192.168.1.5)"
     echo "  -f, --file_name <name>          Output file name (without extension, will be .csv)"
     echo "  -h, --help                     Show this help message"
     exit 0
@@ -18,6 +18,7 @@ start_ip=""
 end_ip=""
 exclude_pattern=""
 file_name=""
+max_parallel_jobs=50  # Reduced number of parallel jobs for testing
 
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -43,10 +44,10 @@ output_file="${file_name}.csv"
 non_responsive_file="${file_name}-non_responsive.csv"
 
 # Write headers to the output file
-echo "ips,urls,domain,SSL certificate expiration,ports" > "$output_file"
+echo "ips,Ping Test,urls,domain,SSL certificate expiration,ports" > "$output_file"
 echo "ips" > "$non_responsive_file"
 
-# Convert IP to integer
+# Function to convert IP to integer
 ip_to_int() {
     local ip="$1"
     local a b c d
@@ -54,7 +55,7 @@ ip_to_int() {
     echo "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
 }
 
-# Convert integer to IP
+# Function to convert integer to IP
 int_to_ip() {
     local int="$1"
     echo "$((int >> 24 & 255)).$((int >> 16 & 255)).$((int >> 8 & 255)).$((int & 255))"
@@ -72,40 +73,34 @@ matches_exclusion() {
     fi
 }
 
-# Function to ping an IP
-ping_ip() {
-    local ip="$1"
-    if ping -c 1 -W 1 "$ip" > /dev/null 2>&1; then
-        echo "$ip,,," >> "$output_file"  # Write responsive IP to output file
-    else
-        echo "$ip" >> "$non_responsive_file"  # Write non-responsive IP to separate file
-    fi
-}
-
-# Function to scan IPs in parallel
-scan_ips_in_parallel() {
+# Function to generate IP range
+generate_ip_range() {
     local start_ip="$1"
     local end_ip="$2"
     local exclude_pattern="$3"
 
-    local ip_list=()
     for ((i=$(ip_to_int "$start_ip"); i<=$(ip_to_int "$end_ip"); i++)); do
         local ip=$(int_to_ip "$i")
-        # Exclude IPs that match the exclusion pattern
         if matches_exclusion "$ip" "$exclude_pattern"; then
-            echo "Skipping $ip (matches exclusion pattern)"
             continue
         fi
-        ip_list+=("$ip")
+        echo "$ip"
     done
-
-    # Ping each IP in parallel
-    echo "Pinging IPs in parallel..."
-    printf "%s\n" "${ip_list[@]}" | xargs -n 1 -P 100 bash -c 'ping_ip "$@"' _  # Run ping_ip in parallel
 }
 
-# Call the function to scan IPs
-scan_ips_in_parallel "$start_ip" "$end_ip" "$exclude_pattern"
+# Process IPs in parallel
+generate_ip_range "$start_ip" "$end_ip" "$exclude_pattern" | xargs -I {} -P "$max_parallel_jobs" bash -c '
+    ip="$1"
+    output_file="$2"
+    non_responsive_file="$3"
+
+    if /bin/ping -c 3 -W 5 "$ip" > /tmp/ping_output 2>&1; then
+        min_ping=$(grep -oP "min/avg/max/mdev = \K[0-9.]+" /tmp/ping_output | head -n 1)
+        echo "$ip,$min_ping,,,," >> "$output_file"  # Write responsive IP with min ping time to output file
+    else
+        echo "$ip" >> "$non_responsive_file"  # Write non-responsive IP to separate file
+    fi
+' _ {} "$output_file" "$non_responsive_file"
 
 # Output results
-echo "IP scanning complete. Results saved to $output
+echo "IP scanning complete. Results saved to $output_file and $non_responsive_file."
