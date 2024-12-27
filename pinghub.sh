@@ -76,8 +76,8 @@ ping_ip() {
     fi
 }
 
-# Function to scan IPs
-scan_ips() {
+# Function to scan IPs in parallel
+scan_ips_in_parallel() {
     local start_ip="$1"
     local end_ip="$2"
     local exclude_pattern="$3"
@@ -93,15 +93,13 @@ scan_ips() {
         ip_list+=("$ip")
     done
 
-    # Ping each IP
-    echo "Pinging IPs..."
-    for ip in "${ip_list[@]}"; do
-        ping_ip "$ip"
-    done
+    # Ping each IP in parallel
+    echo "Pinging IPs in parallel..."
+    printf "%s\n" "${ip_list[@]}" | xargs -n 1 -P 100 bash -c 'ping_ip "$@"' _  # Run ping_ip in parallel
 }
 
 # Call the function to scan IPs
-scan_ips "$start_ip" "$end_ip" "$exclude_pattern"
+scan_ips_in_parallel "$start_ip" "$end_ip" "$exclude_pattern"
 
 # Output results
 if [[ -f "$tmp_output_file" ]]; then
