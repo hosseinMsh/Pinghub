@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#todo --resolve-url ,--check-ssl ,--resolve-hostname  ,--scan-ports <important/all>
 # Function to display help
 show_help() {
     echo "Usage: $0 [-s <start_ip> -e <end_ip>] [-r <exclude_pattern>] -f <file_name>"
@@ -50,7 +50,7 @@ show_examples() {
 # Default values
 start_ip=""
 end_ip=""
-exclude_pattern=""
+exclude_pattern="127.0.0.256"
 file_name=""
 
 # Parse command-line arguments
@@ -80,8 +80,8 @@ if [ "$ping" = true ]; then
         echo "Error: You must provide a start IP, end IP, and file name for pinging."
         exit 1
     fi
-    echo "Pinging IP range from $start_ip to $
-    ./pinghub.sh -s "$start_ip" -e "$end_ip" -r "$exclude_pattern" -f "$file_name"
+    echo "Pinging IP range from $start_ip to $end_ip"
+    bash pinghub.sh -s "$start_ip" -e "$end_ip" -r "$exclude_pattern" -f "$file_name"
     exit 0
 fi
 
@@ -107,7 +107,12 @@ fi
 
 if [ "$resolve_hostname" = true ]; then
     echo "Resolving hostnames..."
-    ./pinghub.sh --resolve-hostname -s "$start_ip" -e "$end_ip"
+     if [[ -f "$file_name" ]]; then
+        bash ipToUrl.sh "$file_name"
+    else
+        echo "Error: File '$file_name' does not exist."
+        exit 1
+    fi
 fi
 
 if [ -n "$resolve_url" ]; then
@@ -122,4 +127,5 @@ fi
 
 # Add any additional functionality as needed
 
-echo "Network tools operations completed."
+# shellcheck disable=SC1073
+echo "Network tools operations completed. "
