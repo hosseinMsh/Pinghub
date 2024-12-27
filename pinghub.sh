@@ -9,12 +9,6 @@ show_help() {
     echo "  -e, --end <end_ip>             Ending IP address (e.g., 127.0.10.255)"
     echo "  -r, --exclude <exclude_pattern> IP pattern to exclude (e.g., 127.0.1.*)"
     echo "  -f, --file_type <csv/txt>      Output file type (default: txt)"
-    echo "  --run-bg                       Run in the background"
-    echo "  --scan-ports <important/all>   Scan important ports (e.g., 22, 80) or all ports"
-    echo "  --resolve-hostname             Resolve hostnames for IP addresses"
-    echo "  --resolve-url <url>            Resolve a URL or domain to its IP address"
-    echo "  --check-ssl                    Check SSL certificate expiration for responding IPs"
-    echo "  -v, --view                     View the status of all IPs"
     echo "  -h, --help                     Show this help message"
     exit 0
 }
